@@ -2,9 +2,9 @@
 
 ### Version 1.0
 
-**Course Summary** 
+**Course Summary**
 
-A template to use when creating a new repository for Python content, using Jupiter Notebooks for delivery. 
+A template to use when creating a new repository for Python content, using Jupiter Notebooks for delivery.
 
 **Learning Outcome**
 
@@ -30,9 +30,9 @@ At the end of the course, participants will be able to:-
 * NA
 
 
-**Course Type** 
+**Course Type**
 
-* E learning - Not Available 
+* E learning - Not Available
 * Self learning - Not Available
 * Face to face - Not Available
 
@@ -40,8 +40,6 @@ At the end of the course, participants will be able to:-
 
 NA
 
-**Pre requisite summary** 
+**Pre requisite summary**
 
 NA
-
-

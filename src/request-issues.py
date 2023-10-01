@@ -84,6 +84,8 @@ repo_prs_resp = s.get(
 )
 if repo_prs_resp.ok:
     repo_prs = repo_prs_resp.json()
+else:
+    print(f"Unable to get repo PRs, status code: {repo_prs_resp.status_code}")
 
 
 for i in repo_prs:
@@ -104,3 +106,32 @@ for i in repo_prs:
         print(j["user"]["avatar_url"])
         print(j["user"]["type"])
         print(j["user"]["site_admin"])
+
+# get all issues for a single repo
+repo_issues_resp = s.get(
+    repo_issues_url,
+    headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
+)
+
+if repo_issues_resp.ok:
+    repo_issues = repo_issues_resp.json()
+else:
+    print(f"Unable to get repo issues, code: {repo_issues_resp.status_code}")
+
+
+for i in repo_issues:
+    print(i.keys())
+    # print(i["user"])
+    print(
+        i["pull_request"]
+    )  # all PRs are issues, though not all issues are PR
+    print(i["body"])
+    print(i["state_reason"])
+    print(i["number"])
+    print(i["title"])
+    print(i["labels"])
+    print(i["state"])  # open, but api state sonly open issues will be listed
+    print(i["assignee"])
+    print(i["assignees"])
+    print(i["created_at"])
+    print(i["draft"])

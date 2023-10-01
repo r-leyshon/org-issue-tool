@@ -4,6 +4,7 @@ import pickle
 import toml
 from pyprojroot import here
 from requests.adapters import HTTPAdapter, Retry
+import pandas as pd
 
 CONFIG = toml.load(here(".secrets.toml"))
 ORG_NM = CONFIG["GITHUB"]["ORG_NM"]
@@ -74,8 +75,12 @@ j["open_issues_count"]  # seems to include issues & PRs
 # TODO: Read all PRs & metadata, read all issues & metadata
 
 repos_url = f"https://api.github.com/repos/{ORG_NM}/"
-repo_prs_url = repos_url + j["name"] + "/pulls"
-repo_issues_url = repos_url + j["name"] + "/issues"
+# experiment with hard coded repo nms
+# repo_prs_url = repos_url + j["name"] + "/pulls"
+# repo_issues_url = repos_url + j["name"] + "/issues"
+nm = "transport-network-performance"
+repo_prs_url = repos_url + nm + "/pulls"
+repo_issues_url = repos_url + nm + "/issues"
 
 # get all PRs for a single repo
 repo_prs_resp = s.get(
@@ -90,7 +95,7 @@ else:
 
 for i in repo_prs:
     for j in repo_prs:
-        print(j.keys())
+        # print(j.keys())
         print(j["html_url"])
         print(j["created_at"])
         print(j["state"])
@@ -107,31 +112,51 @@ for i in repo_prs:
         print(j["user"]["type"])
         print(j["user"]["site_admin"])
 
-# get all issues for a single repo
-repo_issues_resp = s.get(
-    repo_issues_url,
-    headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
-)
+# get all issues for a single repo, paginated
+page = 1
+responses = list()
+while True:
+    repo_issues_resp = s.get(
+        repo_issues_url,
+        headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
+        params={"page": page},
+    )
 
-if repo_issues_resp.ok:
-    repo_issues = repo_issues_resp.json()
-else:
-    print(f"Unable to get repo issues, code: {repo_issues_resp.status_code}")
+    if repo_issues_resp.ok:
+        responses.append(repo_issues_resp.json())
+        if "next" in repo_issues_resp.links:
+            repo_issues_url = repo_issues_resp.links["next"]["url"]
+            page += 1
+        else:
+            print(
+                "Requests left"
+                + repo_issues_resp.headers["X-RateLimit-Remaining"]
+            )
+            break
+    else:
+        print(
+            f"Unable to get repo issues, code: {repo_issues_resp.status_code}"
+        )
 
+# get repo issue details for each page
+repo_issues_concat = pd.DataFrame()
+for i in responses:
+    for j in i:
+        # collect issue details
+        issue_row = pd.DataFrame.from_dict(
+            {
+                "id": [j["id"]],
+                "title": [j["title"]],
+                "body": [j["body"]],
+                "number": [j["number"]],
+                "labels": [", ".join([k["name"] for k in j["labels"]])],
+                "assignee": [j["assignee"]],
+                "assignees": [j["assignees"]],
+                "created_at": [j["created_at"]],
+                "user_name": [j["user"]["login"]],
+                "user_avatar": [j["user"]["avatar_url"]],
+            }
+        )
+        repo_issues_concat = pd.concat([repo_issues_concat, issue_row])
 
-for i in repo_issues:
-    print(i.keys())
-    # print(i["user"])
-    print(
-        i["pull_request"]
-    )  # all PRs are issues, though not all issues are PR
-    print(i["body"])
-    print(i["state_reason"])
-    print(i["number"])
-    print(i["title"])
-    print(i["labels"])
-    print(i["state"])  # open, but api state sonly open issues will be listed
-    print(i["assignee"])
-    print(i["assignees"])
-    print(i["created_at"])
-    print(i["draft"])
+    repo_issues_concat.sort_values(by="created_at")

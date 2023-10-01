@@ -12,7 +12,7 @@ USER_AGENT = CONFIG["USER"]["USER_AGENT"]
 
 # GitHub API endpoint to list pull requests for the organization
 org_url = f"https://api.github.com/orgs/{ORG_NM}/"
-repos_url = org_url + "repos"
+org_repos_url = org_url + "repos"
 
 # configure scrape session
 s = requests.Session()
@@ -28,7 +28,7 @@ page = 1
 while True:
     print(f"Requesting page {page}")
     response = s.get(
-        repos_url,
+        org_repos_url,
         headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
         params={"page": page},
     )
@@ -73,5 +73,34 @@ j["open_issues_count"]  # seems to include issues & PRs
 
 # TODO: Read all PRs & metadata, read all issues & metadata
 
-# https://api.github.com/repos/datasciencecampus/transport-network-performance/pulls
-# https://api.github.com/repos/datasciencecampus/transport-network-performance/issues
+repos_url = f"https://api.github.com/repos/{ORG_NM}/"
+repo_prs_url = repos_url + j["name"] + "/pulls"
+repo_issues_url = repos_url + j["name"] + "/issues"
+
+# get all PRs for a single repo
+repo_prs_resp = s.get(
+    repo_prs_url,
+    headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
+)
+if repo_prs_resp.ok:
+    repo_prs = repo_prs_resp.json()
+
+
+for i in repo_prs:
+    for j in repo_prs:
+        print(j.keys())
+        print(j["html_url"])
+        print(j["created_at"])
+        print(j["state"])
+        print(j["title"])
+        print(j["number"])
+        print(j["assignee"])
+        print(j["assignees"])
+        print(j["requested_reviewers"])
+        print(j["requested_teams"])
+        print(j["labels"])
+        print(j["draft"])
+        print(j["user"]["login"])
+        print(j["user"]["avatar_url"])
+        print(j["user"]["type"])
+        print(j["user"]["site_admin"])

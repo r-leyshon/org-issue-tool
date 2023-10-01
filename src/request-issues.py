@@ -3,23 +3,33 @@ import requests
 import pickle
 import toml
 from pyprojroot import here
+from requests.adapters import HTTPAdapter, Retry
 
 CONFIG = toml.load(here(".secrets.toml"))
 ORG_NM = CONFIG["GITHUB"]["ORG_NM"]
 PAT = CONFIG["GITHUB"]["PAT"]
+USER_AGENT = CONFIG["USER"]["USER_AGENT"]
 
 # GitHub API endpoint to list pull requests for the organization
 org_url = f"https://api.github.com/orgs/{ORG_NM}/"
 repos_url = org_url + "repos"
+
+# configure scrape session
+s = requests.Session()
+retries = Retry(
+    total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
+)
+s.mount("https://", HTTPAdapter(max_retries=retries))
+
 
 responses = list()
 page = 1
 # paginate request
 while True:
     print(f"Requesting page {page}")
-    response = requests.get(
+    response = s.get(
         repos_url,
-        headers={"Authorization": f"Bearer {PAT}"},
+        headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
         params={"page": page},
     )
     if response.ok:
@@ -29,6 +39,9 @@ while True:
             url = response.links["next"]["url"]
             page += 1
         else:
+            print(
+                f"Requests left: {response.headers['X-RateLimit-Remaining']}"
+            )
             break
     else:
         print(f"Failed response for {url}, code: {response.status_code}")

@@ -54,33 +54,32 @@ with open(here("data/github-api-repo-responses.pkl"), "rb") as f:
     responses = pickle.load(f)
 
 repo_nms = list()
+all_repo_deets = pd.DataFrame()
 
 for i in responses:
     for j in i:
         repo_nms.append(j["name"])
+        repo_deets = pd.DataFrame(
+            {
+                "html_url": [j["html_url"]],
+                "is_private": [j["private"]],
+                "is_archived": [j["archived"]],
+                "name": [j["name"]],
+                "description": [j["description"]],
+                "programming_language": [j["language"]],
+            }
+        )
+        all_repo_deets = pd.concat([all_repo_deets, repo_deets])
 
 
-# some useful info through this endpoint
-j.keys()
-j["name"]
-j["full_name"]
-j["private"]
-j["owner"]
-j["html_url"]
-j["issues_url"]  # need to programmatically insert numbers, incudes PRs
-j["language"]  # python
-j["has_issues"]
-j["open_issues_count"]  # seems to include issues & PRs
-
-# TODO: Read all PRs & metadata, read all issues & metadata
+# get PRs and issues through the repos endpoint
 
 repos_url = f"https://api.github.com/repos/{ORG_NM}/"
+nm = "transport-network-performance"
+repo_prs_url = repos_url + nm + "/pulls"
 # experiment with hard coded repo nms
 # repo_prs_url = repos_url + j["name"] + "/pulls"
 # repo_issues_url = repos_url + j["name"] + "/issues"
-nm = "transport-network-performance"
-repo_prs_url = repos_url + nm + "/pulls"
-repo_issues_url = repos_url + nm + "/issues"
 
 # # get all PRs for a single repo
 # repo_prs_resp = s.get(
@@ -173,13 +172,18 @@ def get_repo_issues(
     return responses
 
 
-issues_resp = get_repo_issues(repo_issues_url)
+# get all repo issues for selected organisation
+all_repo_issues = list()
+for nm in repo_nms[0:2]:
+    print(nm)
+    repo_issues = get_repo_issues(f"{repos_url}{nm}/issues")
+    all_repo_issues.extend(repo_issues)
 
 
 # handle response (maybe get_issue_metadata)
 # get repo issue details for each page
 repo_issues_concat = pd.DataFrame()
-for issue in issues_resp:
+for issue in all_repo_issues:
     for i in issue:
         # pull assignees rather than assignee, as both fields are populated
         assignees = i["assignees"]
@@ -209,3 +213,6 @@ for issue in issues_resp:
         repo_issues_concat = pd.concat([repo_issues_concat, issue_row])
 
 repo_issues_concat.sort_values(by="created_at", inplace=True)
+
+
+repo_issues_concat.to_csv("data/testing.csv")

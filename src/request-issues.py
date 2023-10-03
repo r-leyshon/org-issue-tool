@@ -82,81 +82,130 @@ nm = "transport-network-performance"
 repo_prs_url = repos_url + nm + "/pulls"
 repo_issues_url = repos_url + nm + "/issues"
 
-# get all PRs for a single repo
-repo_prs_resp = s.get(
-    repo_prs_url,
-    headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
-)
-if repo_prs_resp.ok:
-    repo_prs = repo_prs_resp.json()
-else:
-    print(f"Unable to get repo PRs, status code: {repo_prs_resp.status_code}")
+# # get all PRs for a single repo
+# repo_prs_resp = s.get(
+#     repo_prs_url,
+#     headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
+# )
+# if repo_prs_resp.ok:
+#     repo_prs = repo_prs_resp.json()
+# else:
+#     print(f"Cant get repo PRs, status code: {repo_prs_resp.status_code}")
 
 
-for i in repo_prs:
-    for j in repo_prs:
-        # print(j.keys())
-        print(j["html_url"])
-        print(j["created_at"])
-        print(j["state"])
-        print(j["title"])
-        print(j["number"])
-        print(j["assignee"])
-        print(j["assignees"])
-        print(j["requested_reviewers"])
-        print(j["requested_teams"])
-        print(j["labels"])
-        print(j["draft"])
-        print(j["user"]["login"])
-        print(j["user"]["avatar_url"])
-        print(j["user"]["type"])
-        print(j["user"]["site_admin"])
+# for i in repo_prs:
+#     for j in repo_prs:
+#         # print(j.keys())
+#         print(j["html_url"])
+#         print(j["created_at"])
+#         print(j["state"])
+#         print(j["title"])
+#         print(j["number"])
+#         print(j["assignee"])
+#         print(j["assignees"])
+#         print(j["requested_reviewers"])
+#         print(j["requested_teams"])
+#         print(j["labels"])
+#         print(j["draft"])
+#         print(j["user"]["login"])
+#         print(j["user"]["avatar_url"])
+#         print(j["user"]["type"])
+#         print(j["user"]["site_admin"])
 
-# get all issues for a single repo, paginated
-page = 1
-responses = list()
-while True:
-    repo_issues_resp = s.get(
-        repo_issues_url,
-        headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
-        params={"page": page},
-    )
 
-    if repo_issues_resp.ok:
-        responses.append(repo_issues_resp.json())
-        if "next" in repo_issues_resp.links:
-            repo_issues_url = repo_issues_resp.links["next"]["url"]
-            page += 1
-        else:
-            print(
-                "Requests left"
-                + repo_issues_resp.headers["X-RateLimit-Remaining"]
-            )
-            break
-    else:
-        print(
-            f"Unable to get repo issues, code: {repo_issues_resp.status_code}"
+def get_repo_issues(
+    repo_url: str,
+    sess: requests.Session = s,
+    pat: str = PAT,
+    agent: str = USER_AGENT,
+) -> list:
+    """Get all issues for a single repo, handles pagination.
+
+    Parameters
+    ----------
+    repo_url : str
+        The url string of the repo. Pattern is
+        'https://api.github.com/repos/<ORGANISATION_NAME>/<REPO_NM>/issues'
+    sess : requests.Session, optional
+        Session configured with retry strategy, by default s
+    pat : str, optional
+        The GitHub PAT, by default PAT
+    agent : str, optional
+        User's browser agent, by default USER_AGENT
+
+    Returns
+    -------
+    list
+        A nested list containing the response JSON for each open issue in the
+        repo.
+
+    Raises
+    ------
+    PermissionError
+        The PAT is not recognised by GitHub.
+
+    """
+    page = 1
+    responses = list()
+    while True:
+        resp = sess.get(
+            repo_url,
+            headers={"Authorization": f"Bearer {pat}", "User-Agent": agent},
+            params={"page": page},
         )
 
+        if resp.ok:
+            responses.append(resp.json())
+            if "next" in resp.links:
+                repo_url = resp.links["next"]["url"]
+                page += 1
+            else:
+                # no more next links so stop while loop
+                print(
+                    "Requests left: " + resp.headers["X-RateLimit-Remaining"]
+                )
+                break
+        elif resp.status_code == 401:
+            raise PermissionError("PAT is invalid. Try generating a new PAT.")
+
+        else:
+            print(f"Unable to get repo issues, code: {resp.status_code}")
+    return responses
+
+
+issues_resp = get_repo_issues(repo_issues_url)
+
+
+# handle response (maybe get_issue_metadata)
 # get repo issue details for each page
 repo_issues_concat = pd.DataFrame()
-for i in responses:
-    for j in i:
+for issue in issues_resp:
+    for i in issue:
+        # pull assignees rather than assignee, as both fields are populated
+        assignees = i["assignees"]
+        if len(assignees) == 0:
+            assignees_users = None
+            assignees_avatar_urls = None
+        else:
+            assignees_users = [usr["login"] for usr in assignees]
+            assignees_avatar_urls = [usr["avatar_url"] for usr in assignees]
+
         # collect issue details
         issue_row = pd.DataFrame.from_dict(
             {
-                "id": [j["id"]],
-                "title": [j["title"]],
-                "body": [j["body"]],
-                "number": [j["number"]],
-                "labels": [", ".join([k["name"] for k in j["labels"]])],
-                "assignee": [j["assignee"]],
-                "assignees": [j["assignees"]],
-                "created_at": [j["created_at"]],
-                "user_name": [j["user"]["login"]],
-                "user_avatar": [j["user"]["avatar_url"]],
+                "repo_url": [i["repository_url"]],
+                "issue_id": [i["id"]],
+                "title": [i["title"]],
+                "body": [i["body"]],
+                "number": [i["number"]],
+                "labels": [", ".join([lab["name"] for lab in i["labels"]])],
+                "assignee_login": [assignees_users],
+                "assignees_avatar_urls": [assignees_avatar_urls],
+                "created_at": [i["created_at"]],
+                "user_name": [i["user"]["login"]],
+                "user_avatar": [i["user"]["avatar_url"]],
             }
         )
         repo_issues_concat = pd.concat([repo_issues_concat, issue_row])
 
-    repo_issues_concat.sort_values(by="created_at")
+repo_issues_concat.sort_values(by="created_at", inplace=True)

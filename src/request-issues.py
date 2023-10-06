@@ -52,7 +52,15 @@ while True:
 #     pickle.dump(responses, f)
 # with open(here("data/github-api-repo-responses.pkl"), "rb") as f:
 #     responses = pickle.load(f)
-
+DTYPES = {
+    "html_url": str,
+    "repo_url": str,
+    "is_private": bool,
+    "is_archived": bool,
+    "name": str,
+    "description": str,
+    "programming_language": str,
+}
 all_repo_deets = pd.DataFrame()
 
 for i in responses:
@@ -68,6 +76,9 @@ for i in responses:
                 "programming_language": [j["language"]],
             }
         )
+        for col, dtype in DTYPES.items():
+            repo_deets[col].astype(dtype)
+
         all_repo_deets = pd.concat([all_repo_deets, repo_deets])
 
 
@@ -185,9 +196,23 @@ def get_all_org_issues(
         repo_issues = get_repo_issues(f"{base_url}{nm}/{endpoint}")
         all_issues.extend(repo_issues)
 
+    # ensure consistent dtypes
+    DTYPES = {
+        "repo_url": str,
+        "issue_id": int,
+        "title": str,
+        "body": str,
+        "number": int,
+        "labels": str,
+        "assignees_logins": str,
+        "assignees_avatar_urls": str,
+        "created_at": str,
+        "user_name": str,
+        "user_avatar": str,
+    }
+
     repo_issues_concat = pd.DataFrame()
     for issue in all_issues:
-        print(issue)
         # catch empty responses where repos have no PRs
         if len(issue) == 0:
             continue
@@ -218,13 +243,16 @@ def get_all_org_issues(
                         "labels": [
                             ", ".join([lb["name"] for lb in i["labels"]])
                         ],
-                        "assignee_login": [assignees_users],
+                        "assignees_logins": [assignees_users],
                         "assignees_avatar_urls": [assignees_avatar],
                         "created_at": [i["created_at"]],
                         "user_name": [i["user"]["login"]],
                         "user_avatar": [i["user"]["avatar_url"]],
                     }
                 )
+                # Set dtypes for each column
+                for col, dtype in DTYPES.items():
+                    issue_row[col] = issue_row[col].astype(dtype)
 
                 repo_issues_concat = pd.concat([repo_issues_concat, issue_row])
 
@@ -234,10 +262,12 @@ def get_all_org_issues(
 
 
 # get every organisation issue
-repos_issues = get_all_org_issues(repo_nms=all_repo_deets["name"])
+repos_issues = get_all_org_issues(
+    repo_nms=all_repo_deets["name"], issue_type="issues"
+)
 
-repos_with_issues = all_repo_deets.merge(
-    repos_issues, how="left", on="repo_url", suffixes=["_repo", "_issue"]
+repos_with_issues = repos_issues.merge(
+    all_repo_deets, how="left", on="repo_url"
 )
 
 # repos_with_issues.to_csv("data/testing.csv")
@@ -249,3 +279,12 @@ all_org_pulls = get_all_org_issues(
 )
 
 # all_org_pulls.to_csv("data/test-pulls.csv")
+
+# anti join the issues with IDs from the pulls.
+
+# foo = repos_with_issues.merge(
+#     all_org_pulls, how="left", on="issue_id", indicator=True)
+
+# repos_with_issues.dtypes
+
+# foo["_merge"].value_counts()

@@ -11,9 +11,6 @@ ORG_NM = CONFIG["GITHUB"]["ORG_NM"]
 PAT = CONFIG["GITHUB"]["PAT"]
 USER_AGENT = CONFIG["USER"]["USER_AGENT"]
 
-# GitHub API endpoint to list pull requests for the organization
-org_url = f"https://api.github.com/orgs/{ORG_NM}/"
-org_repos_url = org_url + "repos"
 
 # configure scrape session
 s = requests.Session()
@@ -23,63 +20,86 @@ retries = requests.adapters.Retry(
 s.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
 
 
-responses = list()
-page = 1
-# paginate request
-while True:
-    print(f"Requesting page {page}")
-    response = s.get(
-        org_repos_url,
-        headers={"Authorization": f"Bearer {PAT}", "User-Agent": USER_AGENT},
-        params={"page": page},
-    )
-    if response.ok:
-        responses.append(response.json())
-        if "next" in response.links:
-            print(f"Next link: {response.links['next']}")
-            url = response.links["next"]["url"]
-            page += 1
-        else:
-            print(
-                f"Requests left: {response.headers['X-RateLimit-Remaining']}"
-            )
-            break
-    else:
-        print(f"Failed response for {url}, code: {response.status_code}")
+def get_org_repos(org_nm=ORG_NM, sess=s, pat=PAT, agent=USER_AGENT):
+    """Get repo metadata for all repos in a GitHub organisation.
 
+    Parameters
+    ----------
+    org_nm : str, optional
+        The organisation name, by default ORG_NM (read from .secrets.toml)
+    sess : requests.Session, optional
+        Requests session configured with retry strategy, by default s
+    pat : str, optional
+        GitHub user PAT, by default PAT
+    agent : str, optional
+        User agent, by default USER_AGENT
 
-# with open(here("data/github-api-repo-responses.pkl"), "wb") as f:
-#     pickle.dump(responses, f)
-# with open(here("data/github-api-repo-responses.pkl"), "rb") as f:
-#     responses = pickle.load(f)
-DTYPES = {
-    "html_url": str,
-    "repo_url": str,
-    "is_private": bool,
-    "is_archived": bool,
-    "name": str,
-    "description": str,
-    "programming_language": str,
-}
-all_repo_deets = pd.DataFrame()
+    Returns
+    -------
+    pd.DataFrame
+        Table of repo metadat.
 
-for i in responses:
-    for j in i:
-        repo_deets = pd.DataFrame(
-            {
-                "html_url": [j["html_url"]],
-                "repo_url": [j["url"]],
-                "is_private": [j["private"]],
-                "is_archived": [j["archived"]],
-                "name": [j["name"]],
-                "description": [j["description"]],
-                "programming_language": [j["language"]],
-            }
+    """
+    # GitHub API endpoint to list pull requests for the organization
+    org_repos_url = f"https://api.github.com/orgs/{org_nm}/repos"
+    responses = list()
+    page = 1
+    # paginate request
+    while True:
+        print(f"Requesting page {page}")
+        response = sess.get(
+            org_repos_url,
+            headers={"Authorization": f"Bearer {pat}", "User-Agent": agent},
+            params={"page": page},
         )
-        for col, dtype in DTYPES.items():
-            repo_deets[col].astype(dtype)
+        if response.ok:
+            responses.append(response.json())
+            if "next" in response.links:
+                print(f"Next link: {response.links['next']}")
+                url = response.links["next"]["url"]
+                page += 1
+            else:
+                print(
+                    f"Reqs left: {response.headers['X-RateLimit-Remaining']}"
+                )
+                break
+        else:
+            print(f"Failed response for {url}, code: {response.status_code}")
 
-        all_repo_deets = pd.concat([all_repo_deets, repo_deets])
+    DTYPES = {
+        "html_url": str,
+        "repo_url": str,
+        "is_private": bool,
+        "is_archived": bool,
+        "name": str,
+        "description": str,
+        "programming_language": str,
+    }
+    all_repo_deets = pd.DataFrame()
+
+    for i in responses:
+        for j in i:
+            repo_deets = pd.DataFrame(
+                {
+                    "html_url": [j["html_url"]],
+                    "repo_url": [j["url"]],
+                    "is_private": [j["private"]],
+                    "is_archived": [j["archived"]],
+                    "name": [j["name"]],
+                    "description": [j["description"]],
+                    "programming_language": [j["language"]],
+                }
+            )
+            # set dtypes
+            for col, dtype in DTYPES.items():
+                repo_deets[col].astype(dtype)
+
+            all_repo_deets = pd.concat([all_repo_deets, repo_deets])
+
+    return all_repo_deets
+
+
+all_repo_deets = get_org_repos()
 
 
 def get_repo_issues(

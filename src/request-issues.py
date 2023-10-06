@@ -20,6 +20,63 @@ retries = requests.adapters.Retry(
 s.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
 
 
+def _paginated_get(
+    url: str,
+    sess: requests.Session = s,
+    pat: str = PAT,
+    agent: str = USER_AGENT,
+) -> list:
+    """Get paginated responses.
+
+    Parameters
+    ----------
+    url : str
+        The url string to query.
+    sess : requests.Session, optional
+        Session configured with retry strategy, by default s
+    pat : str, optional
+        The GitHub PAT, by default PAT
+    agent : str, optional
+        User's browser agent, by default USER_AGENT
+
+    Returns
+    -------
+    list
+        A nested list containing the response JSON content.
+
+    Raises
+    ------
+    PermissionError
+        The PAT is not recognised by GitHub.
+
+    """
+    page = 1
+    responses = list()
+    while True:
+        print(f"Requesting page {page}")
+        resp = sess.get(
+            url,
+            headers={"Authorization": f"Bearer {pat}", "User-Agent": agent},
+            params={"page": page},
+        )
+        if resp.ok:
+            responses.append(resp.json())
+            if "next" in resp.links:
+                url = resp.links["next"]["url"]
+                page += 1
+            else:
+                # no more next links so stop while loop
+                print(
+                    "Requests left: " + resp.headers["X-RateLimit-Remaining"]
+                )
+                break
+        elif resp.status_code == 401:
+            raise PermissionError("PAT is invalid. Try generating a new PAT.")
+        else:
+            print(f"Unable to get repo issues, code: {resp.status_code}")
+    return responses
+
+
 def get_org_repos(org_nm=ORG_NM, sess=s, pat=PAT, agent=USER_AGENT):
     """Get repo metadata for all repos in a GitHub organisation.
 
@@ -42,30 +99,7 @@ def get_org_repos(org_nm=ORG_NM, sess=s, pat=PAT, agent=USER_AGENT):
     """
     # GitHub API endpoint to list pull requests for the organization
     org_repos_url = f"https://api.github.com/orgs/{org_nm}/repos"
-    responses = list()
-    page = 1
-    # paginate request
-    while True:
-        print(f"Requesting page {page}")
-        response = sess.get(
-            org_repos_url,
-            headers={"Authorization": f"Bearer {pat}", "User-Agent": agent},
-            params={"page": page},
-        )
-        if response.ok:
-            responses.append(response.json())
-            if "next" in response.links:
-                print(f"Next link: {response.links['next']}")
-                url = response.links["next"]["url"]
-                page += 1
-            else:
-                print(
-                    f"Reqs left: {response.headers['X-RateLimit-Remaining']}"
-                )
-                break
-        else:
-            print(f"Failed response for {url}, code: {response.status_code}")
-
+    responses = _paginated_get(org_repos_url, sess=sess, pat=pat, agent=agent)
     DTYPES = {
         "html_url": str,
         "repo_url": str,
@@ -100,66 +134,6 @@ def get_org_repos(org_nm=ORG_NM, sess=s, pat=PAT, agent=USER_AGENT):
 
 
 all_repo_deets = get_org_repos()
-
-
-def get_repo_issues(
-    repo_url: str,
-    sess: requests.Session = s,
-    pat: str = PAT,
-    agent: str = USER_AGENT,
-) -> list:
-    """Get all issues for a single repo, handles pagination.
-
-    Parameters
-    ----------
-    repo_url : str
-        The url string of the repo. Pattern is
-        'https://api.github.com/repos/<ORGANISATION_NAME>/<REPO_NM>/issues'
-    sess : requests.Session, optional
-        Session configured with retry strategy, by default s
-    pat : str, optional
-        The GitHub PAT, by default PAT
-    agent : str, optional
-        User's browser agent, by default USER_AGENT
-
-    Returns
-    -------
-    list
-        A nested list containing the response JSON for each open issue in the
-        repo.
-
-    Raises
-    ------
-    PermissionError
-        The PAT is not recognised by GitHub.
-
-    """
-    page = 1
-    responses = list()
-    while True:
-        resp = sess.get(
-            repo_url,
-            headers={"Authorization": f"Bearer {pat}", "User-Agent": agent},
-            params={"page": page},
-        )
-
-        if resp.ok:
-            responses.append(resp.json())
-            if "next" in resp.links:
-                repo_url = resp.links["next"]["url"]
-                page += 1
-            else:
-                # no more next links so stop while loop
-                print(
-                    "Requests left: " + resp.headers["X-RateLimit-Remaining"]
-                )
-                break
-        elif resp.status_code == 401:
-            raise PermissionError("PAT is invalid. Try generating a new PAT.")
-
-        else:
-            print(f"Unable to get repo issues, code: {resp.status_code}")
-    return responses
 
 
 def get_all_org_issues(
@@ -213,7 +187,7 @@ def get_all_org_issues(
     n_repos = len(repo_nms)
     for i, nm in enumerate(repo_nms):
         print(f"Get issues for {nm}, {i+1}/{n_repos} done.")
-        repo_issues = get_repo_issues(f"{base_url}{nm}/{endpoint}")
+        repo_issues = _paginated_get(f"{base_url}{nm}/{endpoint}")
         all_issues.extend(repo_issues)
 
     # ensure consistent dtypes

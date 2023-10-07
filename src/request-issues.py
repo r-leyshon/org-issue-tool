@@ -1,7 +1,5 @@
 """Query GitHub api."""
 import requests
-
-# import pickle
 import toml
 from pyprojroot import here
 import pandas as pd
@@ -281,6 +279,52 @@ def get_all_org_issues(
     return repo_issues_concat
 
 
+def combine_repo_tables(
+    repo_table: pd.DataFrame,
+    issues_table: pd.DataFrame,
+    pulls_table: pd.DataFrame,
+) -> pd.DataFrame:
+    """Combine the three tables to provide a single coherent output.
+
+    Parameters
+    ----------
+    repo_table : pd.DataFrame
+        Output of get_org_repos().
+    issues_table : pd.DataFrame
+        Output of get_all_org_issues(repo_nms=all_repo_deets["name"],
+        issue_type="issues")
+    pulls_table : pd.DataFrame
+        Output of get_all_org_issues(repo_nms=all_repo_deets["name"],
+        issue_type="pulls")
+
+    Returns
+    -------
+    pd.DataFrame
+        Issues and PRs are concatenated with a 'type' marker. Single table
+        joined with repo_table to give full context of each issue or PR.
+
+    """
+    reps = repo_table.copy(deep=True).reset_index(drop=True)
+    iss = issues_table.copy(deep=True).reset_index(drop=True)
+    pulls = pulls_table.copy(deep=True).reset_index(drop=True)
+    # the pull table repo_url is not consistent with the issue table repo_url.
+    # pattern is repo_url/pulls/pull_no
+    pulls["repo_url"] = [i.split("pulls")[0][:-1] for i in pulls["repo_url"]]
+    pulls["type"] = "pr"
+    # filter down the issues table, which contains pulls too, and no obvious
+    # identifier
+    issues_pulls = iss.merge(pulls, how="left", on="node_id", indicator=True)[
+        "_merge"
+    ]
+    iss = issues_table.loc[issues_pulls == "left_only"]
+    iss["type"] = "issue"
+    # combine issues & pulls
+    output_table = pd.concat([iss, pulls], ignore_index=True)
+    output_table = output_table.merge(reps, how="left", on="repo_url")
+
+    return output_table
+
+
 # ---- Use the API
 all_repo_deets = get_org_repos()
 # all_repo_deets.to_csv("data/all-org-repos.csv")
@@ -294,37 +338,5 @@ all_org_pulls = get_all_org_issues(
     issue_type="pulls",
 )
 
-# ---- Further engineering required
-
-# repos_with_issues = repos_issues.merge(
-#     all_repo_deets, how="left", on="repo_url"
-# )
-
-# repos_with_issues.to_csv("data/testing.csv")
-
-
-# the pull table repo_url is not consistent with the issue table repo_url.
-# pattern is repo_url/pulls/pull_no
-all_org_pulls["repo_url"] = [
-    i.split("pulls")[0][:-1] for i in all_org_pulls["repo_url"]
-]
-
-# repos_with_pulls = all_org_pulls.merge(
-#     all_repo_deets, how="left", on="repo_url"
-# )
-all_org_pulls["type"] = "pr"
-
-# repos_with_pulls.to_csv("data/test-pulls.csv")
-
-# filter out any PRs from issues table
-issues_pulls = all_org_issues.merge(
-    all_org_pulls, how="left", on="node_id", indicator=True
-)
-
-all_org_issues = all_org_issues[issues_pulls["_merge"] == "left_only"]
-all_org_issues["type"] = "issue"
-
-output_table = pd.concat([all_org_issues, all_org_pulls], ignore_index=True)
-output_table = output_table.merge(all_repo_deets, how="left", on="repo_url")
-
-output_table.to_csv("data/out.csv")
+out = combine_repo_tables(all_repo_deets, all_org_issues, all_org_pulls)
+out.to_feather("data/out.arrow")

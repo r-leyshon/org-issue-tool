@@ -14,3 +14,4 @@
 .secrets.toml
 data/
 **/*.egg-info
+build/

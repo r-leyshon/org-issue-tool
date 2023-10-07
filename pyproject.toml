@@ -1,0 +1,52 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61.0.0", "wheel"]
+
+[project]
+name = "org_bounty_board"
+authors = [
+    {name = "Rich Leyshon", email = "leyshonrr@hotmail.co.uk"}
+]
+description = "Get all repo issues for an organisation."
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+]
+requires-python = ">=3.11"
+version = "0.0.1"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.urls]
+Repository = "https://github.com/r-leyshon/org-issue-tool"
+"Bug tracker" = "https://github.com/r-leyshon/org-issue-tool/issues"
+
+# `coverage` configurations
+[tool.coverage.run]
+source = [
+    "./src"
+]
+omit = ["**/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if __name__ == .__main__.:"
+]
+
+# `isort` configurations
+[tool.isort]
+profile = "black"
+
+# `pytest` configurations
+[tool.pytest.ini_options]
+addopts = [
+    "-vv",
+    "--doctest-modules"
+]
+doctest_optionflags = "NORMALIZE_WHITESPACE"
+testpaths = [
+    "./tests"
+]

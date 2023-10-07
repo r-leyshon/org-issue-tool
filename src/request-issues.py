@@ -12,17 +12,38 @@ PAT = CONFIG["GITHUB"]["PAT"]
 USER_AGENT = CONFIG["USER"]["USER_AGENT"]
 
 
-# configure scrape session
-s = requests.Session()
-retries = requests.adapters.Retry(
-    total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
-)
-s.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
+def _configure_requests(
+    n=5, backoff_f=0.1, force_on=[500, 502, 503, 504]
+) -> requests.Session:
+    """Set up a request session with retry.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of retries, by default 5
+    backoff_f : float, optional
+        backoff_factor, by default 0.1
+    force_on : list, optional
+        HTTP status errors to retry, by default [500,502,503,504]
+
+    Returns
+    -------
+    requests.Session
+        The requests session configured with the specified retry strategy.
+
+    """
+    # configure scrape session
+    s = requests.Session()
+    retries = requests.adapters.Retry(
+        total=n, backoff_factor=backoff_f, status_forcelist=force_on
+    )
+    s.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
+    return s
 
 
 def _paginated_get(
     url: str,
-    sess: requests.Session = s,
+    sess: requests.Session = _configure_requests(),
     pat: str = PAT,
     agent: str = USER_AGENT,
 ) -> list:
@@ -77,7 +98,9 @@ def _paginated_get(
     return responses
 
 
-def get_org_repos(org_nm=ORG_NM, sess=s, pat=PAT, agent=USER_AGENT):
+def get_org_repos(
+    org_nm=ORG_NM, sess=_configure_requests(), pat=PAT, agent=USER_AGENT
+):
     """Get repo metadata for all repos in a GitHub organisation.
 
     Parameters
@@ -140,7 +163,7 @@ def get_all_org_issues(
     org_nm: str = ORG_NM,
     repo_nms: list = all_repo_deets["name"],
     issue_type="issues",
-    sess: requests.Session = s,
+    sess: requests.Session = _configure_requests(),
     pat: str = PAT,
     agent: str = USER_AGENT,
 ) -> pd.DataFrame:
@@ -194,6 +217,7 @@ def get_all_org_issues(
     DTYPES = {
         "repo_url": str,
         "issue_id": int,
+        "node_id": str,
         "title": str,
         "body": str,
         "number": int,
@@ -231,6 +255,7 @@ def get_all_org_issues(
                     {
                         "repo_url": [repo_url],
                         "issue_id": [i["id"]],
+                        "node_id": [i["node_id"]],
                         "title": [i["title"]],
                         "body": [i["body"]],
                         "number": [i["number"]],
@@ -274,11 +299,10 @@ all_org_pulls = get_all_org_issues(
 
 # all_org_pulls.to_csv("data/test-pulls.csv")
 
-# anti join the issues with IDs from the pulls.
+# filter out any PRs from issues table
+issues_pulls = repos_with_issues.merge(
+    all_org_pulls, how="left", on="node_id", indicator=True
+)
 
-# foo = repos_with_issues.merge(
-#     all_org_pulls, how="left", on="issue_id", indicator=True)
-
-# repos_with_issues.dtypes
-
-# foo["_merge"].value_counts()
+repos_with_issues = repos_with_issues[issues_pulls["_merge"] == "left_only"]
+repos_with_issues.reset_index(drop=True, inplace=True)

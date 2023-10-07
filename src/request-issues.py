@@ -1,13 +1,6 @@
 """Query GitHub api."""
 import requests
-import toml
-from pyprojroot import here
 import pandas as pd
-
-CONFIG = toml.load(here(".secrets.toml"))
-ORG_NM = CONFIG["GITHUB"]["ORG_NM"]
-PAT = CONFIG["GITHUB"]["PAT"]
-USER_AGENT = CONFIG["USER"]["USER_AGENT"]
 
 
 def _configure_requests(
@@ -41,9 +34,9 @@ def _configure_requests(
 
 def _paginated_get(
     url: str,
+    pat: str,
+    agent: str,
     sess: requests.Session = _configure_requests(),
-    pat: str = PAT,
-    agent: str = USER_AGENT,
 ) -> list:
     """Get paginated responses.
 
@@ -51,14 +44,14 @@ def _paginated_get(
     ----------
     url : str
         The url string to query.
+    pat : str,
+        The User's GitHub PAT.
+    agent : str,
+        User's browser agent.
     sess : requests.Session, optional
         Session configured with retry strategy, by default
         _configure_requests() with default values of n=5, backoff_f=0.1,
         force_on=[500, 502, 503, 504]
-    pat : str, optional
-        The GitHub PAT, by default PAT
-    agent : str, optional
-        User's browser agent, by default USER_AGENT
 
     Returns
     -------
@@ -99,22 +92,25 @@ def _paginated_get(
 
 
 def get_org_repos(
-    org_nm=ORG_NM, sess=_configure_requests(), pat=PAT, agent=USER_AGENT
+    org_nm: str,
+    pat: str,
+    agent: str,
+    sess: requests.Session = _configure_requests(),
 ):
     """Get repo metadata for all repos in a GitHub organisation.
 
     Parameters
     ----------
-    org_nm : str, optional
+    org_nm : str,
         The organisation name, by default ORG_NM (read from .secrets.toml)
+    pat : str,
+        GitHub user PAT, by default PAT
+    agent : str,
+        User agent, by default USER_AGENT
     sess : requests.Session, optional
         Session configured with retry strategy, by default
         _configure_requests() with default values of n=5, backoff_f=0.1,
         force_on=[500, 502, 503, 504]
-    pat : str, optional
-        GitHub user PAT, by default PAT
-    agent : str, optional
-        User agent, by default USER_AGENT
 
     Returns
     -------
@@ -160,11 +156,11 @@ def get_org_repos(
 
 def get_all_org_issues(
     repo_nms: list,
-    org_nm: str = ORG_NM,
+    org_nm: str,
+    pat: str,
+    agent: str,
     issue_type="issues",
     sess: requests.Session = _configure_requests(),
-    pat: str = PAT,
-    agent: str = USER_AGENT,
 ) -> pd.DataFrame:
     """Get every repo issue for entire org.
 
@@ -176,14 +172,16 @@ def get_all_org_issues(
         List of the repo name strings
     org_nm : str,
         The name of the organisation, by default ORG_NM (from .secrets.toml)
-    issue_type : str, optional
-        Accepts either 'issues' or 'pulls'
-    sess : requests.Session, optional
-        Request session configured with retry strategy, by default s
-    pat : str, optional
+    pat : str,
         User's PAT code, by default PAT (from .secrets.toml)
-    agent : str, optional
+    agent : str,
         User agent string, by default USER_AGENT (from .secrets.toml)
+    issue_type : str, optional
+        Accepts either 'issues' or 'pulls', by default "issues"
+    sess : requests.Session, optional
+        Session configured with retry strategy, by default
+        _configure_requests() with default values of n=5, backoff_f=0.1,
+        force_on=[500, 502, 503, 504]
 
     Returns
     -------
@@ -323,20 +321,3 @@ def combine_repo_tables(
     output_table = output_table.merge(reps, how="left", on="repo_url")
 
     return output_table
-
-
-# ---- Use the API
-all_repo_deets = get_org_repos()
-# all_repo_deets.to_csv("data/all-org-repos.csv")
-# get every organisation issue
-all_org_issues = get_all_org_issues(
-    repo_nms=all_repo_deets["name"], issue_type="issues"
-)
-# get every organisation pull request
-all_org_pulls = get_all_org_issues(
-    repo_nms=all_repo_deets["name"],
-    issue_type="pulls",
-)
-
-out = combine_repo_tables(all_repo_deets, all_org_issues, all_org_pulls)
-out.to_feather("data/out.arrow")

@@ -54,7 +54,9 @@ def _paginated_get(
     url : str
         The url string to query.
     sess : requests.Session, optional
-        Session configured with retry strategy, by default s
+        Session configured with retry strategy, by default
+        _configure_requests() with default values of n=5, backoff_f=0.1,
+        force_on=[500, 502, 503, 504]
     pat : str, optional
         The GitHub PAT, by default PAT
     agent : str, optional
@@ -108,7 +110,9 @@ def get_org_repos(
     org_nm : str, optional
         The organisation name, by default ORG_NM (read from .secrets.toml)
     sess : requests.Session, optional
-        Requests session configured with retry strategy, by default s
+        Session configured with retry strategy, by default
+        _configure_requests() with default values of n=5, backoff_f=0.1,
+        force_on=[500, 502, 503, 504]
     pat : str, optional
         GitHub user PAT, by default PAT
     agent : str, optional
@@ -156,12 +160,9 @@ def get_org_repos(
     return all_repo_deets
 
 
-all_repo_deets = get_org_repos()
-
-
 def get_all_org_issues(
+    repo_nms: list,
     org_nm: str = ORG_NM,
-    repo_nms: list = all_repo_deets["name"],
     issue_type="issues",
     sess: requests.Session = _configure_requests(),
     pat: str = PAT,
@@ -173,10 +174,10 @@ def get_all_org_issues(
 
     Parameters
     ----------
-    org_nm : str, optional
+    repo_nms : list,
+        List of the repo name strings
+    org_nm : str,
         The name of the organisation, by default ORG_NM (from .secrets.toml)
-    repo_nms : list, optional
-        List of the repo name strings, by default all_repo_deets["name"]
     issue_type : str, optional
         Accepts either 'issues' or 'pulls'
     sess : requests.Session, optional
@@ -280,29 +281,50 @@ def get_all_org_issues(
     return repo_issues_concat
 
 
+# ---- Use the API
+all_repo_deets = get_org_repos()
+# all_repo_deets.to_csv("data/all-org-repos.csv")
 # get every organisation issue
-repos_issues = get_all_org_issues(
+all_org_issues = get_all_org_issues(
     repo_nms=all_repo_deets["name"], issue_type="issues"
 )
-
-repos_with_issues = repos_issues.merge(
-    all_repo_deets, how="left", on="repo_url"
-)
-
-# repos_with_issues.to_csv("data/testing.csv")
-
 # get every organisation pull request
 all_org_pulls = get_all_org_issues(
     repo_nms=all_repo_deets["name"],
     issue_type="pulls",
 )
 
-# all_org_pulls.to_csv("data/test-pulls.csv")
+# ---- Further engineering required
+
+# repos_with_issues = repos_issues.merge(
+#     all_repo_deets, how="left", on="repo_url"
+# )
+
+# repos_with_issues.to_csv("data/testing.csv")
+
+
+# the pull table repo_url is not consistent with the issue table repo_url.
+# pattern is repo_url/pulls/pull_no
+all_org_pulls["repo_url"] = [
+    i.split("pulls")[0][:-1] for i in all_org_pulls["repo_url"]
+]
+
+# repos_with_pulls = all_org_pulls.merge(
+#     all_repo_deets, how="left", on="repo_url"
+# )
+all_org_pulls["type"] = "pr"
+
+# repos_with_pulls.to_csv("data/test-pulls.csv")
 
 # filter out any PRs from issues table
-issues_pulls = repos_with_issues.merge(
+issues_pulls = all_org_issues.merge(
     all_org_pulls, how="left", on="node_id", indicator=True
 )
 
-repos_with_issues = repos_with_issues[issues_pulls["_merge"] == "left_only"]
-repos_with_issues.reset_index(drop=True, inplace=True)
+all_org_issues = all_org_issues[issues_pulls["_merge"] == "left_only"]
+all_org_issues["type"] = "issue"
+
+output_table = pd.concat([all_org_issues, all_org_pulls], ignore_index=True)
+output_table = output_table.merge(all_repo_deets, how="left", on="repo_url")
+
+output_table.to_csv("data/out.csv")

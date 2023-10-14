@@ -12,6 +12,13 @@ app_ui = ui.page_fluid(
         label="Select a Repo:",
         choices=reps,
     ),
+    ui.input_radio_buttons(
+        id="type_filter",
+        label="Select Type:",
+        choices=["issue", "pr"],
+        selected="issue",
+        inline=True,
+    ),
     ui.output_data_frame("table"),
 )
 
@@ -22,13 +29,11 @@ def server(input, output, session):
     @output
     @render.data_frame
     def table():
-        """Return the table object."""
-        repo_select = input.repo_filter()
-
-        if repo_select == "":
-            return dat
-        else:
-            return dat.loc[dat["name"] == repo_select]
+        """Return the optionally filtered table object."""
+        r = input.repo_filter()
+        t = input.type_filter()
+        q_string = f"name == '{r}' and type == '{t}'"
+        return dat.query(q_string)
 
 
 app = App(app_ui, server)

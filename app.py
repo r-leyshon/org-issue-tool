@@ -1,5 +1,5 @@
 """Organisation bounty board app."""
-from shiny import ui, App, render
+from shiny import ui, App, reactive, render, Inputs, Outputs, Session
 import pandas as pd
 from pyprojroot import here
 
@@ -20,19 +20,17 @@ app_ui = ui.page_fluid(
         selected="all",
         inline=True,
     ),
+    ui.download_button("download", "Download CSV"),
     ui.output_data_frame("table"),
-    # ui.output_text("table")
 )
 
 
-def server(input, output, session):
+def server(input: Inputs, output: Outputs, session: Session):
     """Server logic goes here."""
 
-    @output
-    @render.data_frame
-    # @render.text
-    def table():
-        """Return the optionally filtered table object."""
+    @reactive.Calc
+    def selected_rows():
+        """Handle the table querying. Pass to output.table() or download()."""
         r = input.repo_filter()
         t = input.type_filter()
         if t == "issues":
@@ -53,7 +51,17 @@ def server(input, output, session):
             # min 1 repo selected & 'all' type is not selected
             q_string = f"name in {r} and type == '{type_sel}'"
         return dat.query(q_string)
-        # return q_string
+
+    @output
+    @render.data_frame
+    def table():
+        """Return the optionally filtered table object."""
+        return selected_rows()
+
+    @session.download(filename="data.csv")
+    def download():
+        """Download the selected row range to file."""
+        yield selected_rows().to_csv()
 
 
 app = App(app_ui, server)

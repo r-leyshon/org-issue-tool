@@ -20,8 +20,8 @@ app_ui = ui.page_fluid(
         selected="all",
         inline=True,
     ),
-    ui.download_button("download", "Download CSV"),
     ui.output_data_frame("table"),
+    ui.download_button("download", "Download CSV"),
 )
 
 

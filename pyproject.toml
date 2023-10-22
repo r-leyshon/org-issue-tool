@@ -14,7 +14,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",
 ]
-requires-python = ">=3.11"
+requires-python = "==3.11.5"
 version = "0.0.1"
 
 [tool.setuptools.packages.find]

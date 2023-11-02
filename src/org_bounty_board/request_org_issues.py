@@ -96,7 +96,7 @@ def get_org_repos(
     pat: str,
     agent: str,
     sess: requests.Session = _configure_requests(),
-):
+) -> pd.DataFrame:
     """Get repo metadata for all repos in a GitHub organisation.
 
     Parameters
@@ -207,7 +207,9 @@ def get_all_org_issues(
     n_repos = len(repo_nms)
     for i, nm in enumerate(repo_nms):
         print(f"Get issues for {nm}, {i+1}/{n_repos} done.")
-        repo_issues = _paginated_get(f"{base_url}{nm}/{endpoint}")
+        repo_issues = _paginated_get(
+            f"{base_url}{nm}/{endpoint}", pat=pat, agent=agent
+        )
         all_issues.extend(repo_issues)
 
     # ensure consistent dtypes

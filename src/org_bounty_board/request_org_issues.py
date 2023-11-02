@@ -96,6 +96,7 @@ def get_org_repos(
     pat: str,
     agent: str,
     sess: requests.Session = _configure_requests(),
+    public_only: bool = False,
 ) -> pd.DataFrame:
     """Get repo metadata for all repos in a GitHub organisation.
 
@@ -111,6 +112,11 @@ def get_org_repos(
         Session configured with retry strategy, by default
         _configure_requests() with default values of n=5, backoff_f=0.1,
         force_on=[500, 502, 503, 504]
+    public_only : bool
+        If the GitHub PAT has private scopes for the organisation you are
+        requesting, then private repo metadata will also be returned. To filter
+        to public repo matadata only, set this parameter to True. Defaults to
+        False.
 
     Returns
     -------
@@ -150,6 +156,9 @@ def get_org_repos(
                 repo_deets[col].astype(dtype)
 
             all_repo_deets = pd.concat([all_repo_deets, repo_deets])
+
+    if public_only:
+        all_repo_deets = all_repo_deets.query("is_private == False")
 
     return all_repo_deets
 

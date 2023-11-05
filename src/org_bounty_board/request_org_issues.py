@@ -36,6 +36,7 @@ def _paginated_get(
     url: str,
     pat: str,
     agent: str,
+    params: dict = {},
     sess: requests.Session = _configure_requests(),
 ) -> list:
     """Get paginated responses.
@@ -48,6 +49,8 @@ def _paginated_get(
         The User's GitHub PAT.
     agent : str,
         User's browser agent.
+    params: dict
+        Dictionary of parameters to pass the developer API.
     sess : requests.Session, optional
         Session configured with retry strategy, by default
         _configure_requests() with default values of n=5, backoff_f=0.1,
@@ -68,10 +71,11 @@ def _paginated_get(
     responses = list()
     while True:
         print(f"Requesting page {page}")
+        params["page"] = page
         resp = sess.get(
             url,
             headers={"Authorization": f"Bearer {pat}", "User-Agent": agent},
-            params={"page": page},
+            params=params,
         )
         if resp.ok:
             responses.append(resp.json())
@@ -126,7 +130,13 @@ def get_org_repos(
     """
     # GitHub API endpoint to list pull requests for the organization
     org_repos_url = f"https://api.github.com/orgs/{org_nm}/repos"
-    responses = _paginated_get(org_repos_url, sess=sess, pat=pat, agent=agent)
+    params = {}
+    if public_only:
+        params["type"] = "public"
+
+    responses = _paginated_get(
+        org_repos_url, sess=sess, pat=pat, params=params, agent=agent
+    )
     DTYPES = {
         "html_url": str,
         "repo_url": str,
@@ -156,9 +166,6 @@ def get_org_repos(
                 repo_deets[col].astype(dtype)
 
             all_repo_deets = pd.concat([all_repo_deets, repo_deets])
-
-    if public_only:
-        all_repo_deets = all_repo_deets.query("is_private == False")
 
     return all_repo_deets
 

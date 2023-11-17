@@ -1,6 +1,8 @@
 """api usage."""
 import toml
 from pyprojroot import here
+from datetime import datetime as dt
+import pickle
 
 from org_bounty_board import request_org_issues as reqiss
 
@@ -32,3 +34,9 @@ all_org_pulls = reqiss.get_all_org_issues(
 
 out = reqiss.combine_repo_tables(all_repo_deets, all_org_issues, all_org_pulls)
 out.to_feather("data/out.arrow")
+
+# save date of ingest for presentation in UI
+vintage_dt = dt.now().replace(microsecond=0)
+with open("data/vintage-date.pkl", "wb") as f:
+    pickle.dump(vintage_dt, f)
+    f.close()

@@ -2,8 +2,22 @@
 from shiny import ui, App, reactive, render, Inputs, Outputs, Session
 import pandas as pd
 from pyprojroot import here
+import os
+import pickle
 
-dat = pd.read_feather(here("data/out.arrow"))
+dat_pth = "data/out.arrow"
+if os.path.exists(dat_pth):
+    dat = pd.read_feather(here("data/out.arrow"))
+else:
+    raise FileNotFoundError("Issue data not found.")
+
+vintage_pth = "data/vintage-date.pkl"
+if os.path.exists(vintage_pth):
+    with open(vintage_pth, "rb") as f:
+        vintage_dt = pickle.load(f)
+else:
+    raise FileNotFoundError("Vintage date not found.")
+
 reps = dat["name"].unique().tolist()
 
 app_ui = ui.page_fluid(
@@ -20,6 +34,7 @@ app_ui = ui.page_fluid(
         selected="all",
         inline=True,
     ),
+    ui.output_text("vintage"),
     ui.output_data_frame("table"),
     ui.download_button("download", "Download CSV"),
 )
@@ -57,6 +72,12 @@ def server(input: Inputs, output: Outputs, session: Session):
     def table():
         """Return the optionally filtered table object."""
         return selected_rows()
+    
+    @output
+    @render.text
+    def vintage():
+        "Present the datetime that the data was ingested at"
+        return f"Date of Ingest: {vintage_dt}"
 
     @session.download(filename="data.csv")
     def download():

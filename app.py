@@ -5,9 +5,13 @@ from pyprojroot import here
 import os
 import pickle
 
+from org_bounty_board.utilities import check_df_for_true_column_value
+
 dat_pth = "data/out.arrow"
 if os.path.exists(dat_pth):
     dat = pd.read_feather(here("data/out.arrow"))
+    check_df_for_true_column_value(dat, "is_private")
+
 else:
     raise FileNotFoundError("Issue data not found.")
 
@@ -72,11 +76,11 @@ def server(input: Inputs, output: Outputs, session: Session):
     def table():
         """Return the optionally filtered table object."""
         return selected_rows()
-    
+
     @output
     @render.text
     def vintage():
-        "Present the datetime that the data was ingested at"
+        """Present the datetime that the data was ingested at."""
         return f"Date of Ingest: {vintage_dt}"
 
     @session.download(filename="data.csv")

@@ -1,6 +1,9 @@
+importlib-metadata==4.13.0
 pandas
 pyarrow
 pyprojroot
+pytest
 requests
 shiny
 toml
+.

@@ -44,7 +44,7 @@ repos:
 
 # ----- flake8 - python linting
 - repo: https://github.com/pycqa/flake8
-  rev: 3.9.2
+  rev: 5.0.4
   hooks:
     - id: flake8
       name: flake8 - Python linting

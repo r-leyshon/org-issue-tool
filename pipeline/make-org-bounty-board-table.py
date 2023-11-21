@@ -47,3 +47,7 @@ vintage_dt = dt.now().replace(microsecond=0)
 with open("data/vintage-date.pkl", "wb") as f:
     pickle.dump(vintage_dt, f)
     f.close()
+# save organisation name for presentation in UI
+with open("data/org-nm.pkl", "wb") as f:
+    pickle.dump(ORG_NM, f)
+    f.close()

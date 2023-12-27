@@ -1,6 +1,8 @@
 """api usage."""
-import toml
-from pyprojroot import here
+# import toml
+import os
+
+# from pyprojroot import here
 from datetime import datetime as dt
 import pickle
 
@@ -9,14 +11,19 @@ from org_bounty_board.utilities import check_df_for_true_column_value
 
 PUBLIC_ONLY = True
 
-CONFIG = toml.load(here(".secrets.toml"))
-ORG_NM = CONFIG["GITHUB"]["ORG_NM"]
-PAT = CONFIG["GITHUB"]["PAT"]
-USER_AGENT = CONFIG["USER"]["USER_AGENT"]
+# CONFIG = toml.load(here(".secrets.toml"))
+# ORG_NM = CONFIG["GITHUB"]["ORG_NM"]
+# PAT = CONFIG["GITHUB"]["PAT"]
+# USER_AGENT = CONFIG["USER"]["USER_AGENT"]
+USER_AGENT = os.getenv("AGENT")
+ORG_NM = os.getenv("ORG_NM")
 
 # get all org issues
 all_repo_deets = reqiss.get_org_repos(
-    org_nm=ORG_NM, pat=PAT, agent=USER_AGENT, public_only=PUBLIC_ONLY
+    org_nm=ORG_NM,
+    # pat=PAT,
+    agent=USER_AGENT,
+    public_only=PUBLIC_ONLY,
 )
 # failsafe if api parameters change
 if PUBLIC_ONLY:
@@ -26,7 +33,7 @@ if PUBLIC_ONLY:
 all_org_issues = reqiss.get_all_org_issues(
     repo_nms=all_repo_deets["name"],
     org_nm=ORG_NM,
-    pat=PAT,
+    # pat=PAT,
     agent=USER_AGENT,
     issue_type="issues",
 )
@@ -34,7 +41,7 @@ all_org_issues = reqiss.get_all_org_issues(
 all_org_pulls = reqiss.get_all_org_issues(
     repo_nms=all_repo_deets["name"],
     org_nm=ORG_NM,
-    pat=PAT,
+    # pat=PAT,
     agent=USER_AGENT,
     issue_type="pulls",
 )

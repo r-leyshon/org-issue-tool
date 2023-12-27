@@ -15,7 +15,7 @@ flowchart LR
     C --> D[data/vintage-date.pkl]
     C --> E[data/org-nm.pkl]
     C --> F[data/out.arrow]
-    G([secrets.AGENT\nsecrets.APP_PAT\nvars.ORGNM]) -.-> C
+    G([AGENT\nAPP_PAT\nORGNM]) -.-> C
     C ==> H(JOB: Configure rsconnect)
     I([RSCONNECT_USERNAME\nRSCONNECT_TOKEN\nRSCONNECT_SECRET]) -.-> H
     H ==> J(JOB: Deploy to rsconnect)

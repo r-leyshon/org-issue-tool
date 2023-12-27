@@ -4,6 +4,7 @@ pyarrow
 pyprojroot
 pytest
 requests
+rsconnect-python
 shiny
 toml
 .

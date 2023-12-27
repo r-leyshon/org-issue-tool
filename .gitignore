@@ -1,3 +1,10 @@
+# rsconnect lint
+rsconnect-python/
+
+# quarto preview
+*.html
+README_files/
+
 ## template gitignore
 
 **/git_ignore

@@ -1,45 +1,43 @@
-# Python Jupyter Repo Template
+# org-issue-tool
+View all open repository issues and PRs for an organisation - a precursor
+bounty board.
 
-### Version 1.0
+A [python shiny application](https://richleysh84.shinyapps.io/org-bounty-board/)
+displays the time it was updated, organisation name and open repository
+metadata. This is deployed on a Friday at 00:00 with GitHub Actions.
 
-**Course Summary**
+## Workflow Guide
 
-A template to use when creating a new repository for Python content, using Jupiter Notebooks for delivery.
+```mermaid
+flowchart LR
+    A[update.yml] ==>|Friday 00:00| B(JOB: Install dependencies)
+    B ==> C(JOB: Run pipeline)
+    C --> D[data/vintage-date.pkl]
+    C --> E[data/org-nm.pkl]
+    C --> F[data/out.arrow]
+    G([AGENT\nAPP_PAT\nORGNM]) -.-> C
+    C ==> H(JOB: Configure rsconnect)
+    I([RSCONNECT_USERNAME\nRSCONNECT_TOKEN\nRSCONNECT_SECRET]) -.-> H
+    H ==> J(JOB: Deploy to rsconnect)
+    K([APP_ID]) -.-> J
+    J ==> L{{shinyapps.io: serve app.py}}
+    D -.-> L
+    E -.-> L
+    F -.-> L
 
-**Learning Outcome**
+```
 
-NA
+The [GitHub Actions workflow file](/./.github/workflows/update.yml) expects the
+repository to have configured:
 
+- environment variables
+    - `RSCONNECT_USERNAME`
+    - `ORGNM` (the organisation name to scrape issues/PRs)
+- secrets
+    - `AGENT` (an appropriate agent string)
+    - `APP_PAT`
+    - `RSCONNECT_TOKEN`
+    - `RSCONNECT_SECRET`
+    - `APP_ID`
 
-**Lead Developer**
-
-Richard Leyshon
-
-**Course Reviewer(s)**
-
-Pending
-
-**Intended Audience**
-
-Faculty
-
-**Learning Objective**
-
-At the end of the course, participants will be able to:-
-
-* NA
-
-
-**Course Type**
-
-* E learning - Not Available
-* Self learning - Not Available
-* Face to face - Not Available
-
-**Skill Level**
-
-NA
-
-**Pre requisite summary**
-
-NA
+Note the workflow deploys to an application called `org-bounty-board`.

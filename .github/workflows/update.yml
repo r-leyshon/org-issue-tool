@@ -19,6 +19,7 @@ jobs:
         env:
           AGENT: ${{ secrets.AGENT }}
           ORG_NM: ${{ vars.ORGNM }}
+          PAT: ${{ secrets.APP_PAT }}
         run: |
           python3 pipeline/make-org-bounty-board-table.py
       - name: Configure rsconnect

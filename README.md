@@ -9,16 +9,16 @@ metadata. This is deployed on a Friday at 00:00 with GitHub Actions.
 ## Workflow Guide
 
 ```mermaid
-flowchart TD
+flowchart LR
     A[update.yml] ==>|Friday 00:00| B(JOB: Install dependencies)
-    B ==> C(JOB: Run pipeline/make-org-bounty-board-table.py)
-    C -->|pickle.dump datetime.now| D[ARTIFACT: data/vintage-date.pkl]
-    C -->|pickle.dump ORG_NM| E[ARTIFACT: data/org-nm.pkl]
-    C -->|to_feather| F[ARTIFACT: data/out.arrow]
+    B ==> C(JOB: Run pipeline)
+    C --> D[data/vintage-date.pkl]
+    C --> E[data/org-nm.pkl]
+    C --> F[data/out.arrow]
     G([secrets.AGENT\nsecrets.APP_PAT\nvars.ORGNM]) -.-> C
     C ==> H(JOB: Configure rsconnect)
     I([RSCONNECT_USERNAME\nRSCONNECT_TOKEN\nRSCONNECT_SECRET]) -.-> H
-    I ==> J(JOB: Deploy to rsconnect)
+    H ==> J(JOB: Deploy to rsconnect)
     K([APP_ID]) -.-> J
     J ==> L{{shinyapps.io: serve app.py}}
     D -.-> L

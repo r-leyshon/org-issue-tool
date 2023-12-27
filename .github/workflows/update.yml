@@ -1,8 +1,7 @@
 name: Update Application
 on:
-  push
-  # schedule:
-  #   - cron: '0 0 * * 5' # at midnight every Friday
+  schedule:
+    - cron: '0 0 * * 5' # at midnight every Friday
 jobs:
   build:
     runs-on: ubuntu-latest

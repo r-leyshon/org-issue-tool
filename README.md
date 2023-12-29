@@ -10,7 +10,7 @@ metadata. This is deployed on a Friday at 00:00 with GitHub Actions.
 
 ```mermaid
 flowchart LR
-    A[update.yml] ==>|Friday 00:00| B(JOB: Install dependencies)
+    A[update.yml] ==>|Friday 11:59| B(JOB: Install dependencies)
     B ==> C(JOB: Run pipeline)
     C --> D[data/vintage-date.pkl]
     C --> E[data/org-nm.pkl]

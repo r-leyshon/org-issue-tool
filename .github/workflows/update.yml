@@ -1,7 +1,7 @@
 name: Update Application
 on:
   schedule:
-    - cron: '0 0 * * 5' # at midnight every Friday
+    - cron: '59 23 * * FRI' # 1 minute before midnight every Friday
 jobs:
   build:
     runs-on: ubuntu-latest
